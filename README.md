@@ -1,11 +1,10 @@
 # mlworkshop
 
-***
 
 Materials for the 2020 SER Workshop: Algorithms, Bootstrapping and Cross-Validation: The ABCs of Machine Learning for Epidemiologists
 
 ## Contents
-***
+
 This repository contains the following folders:
 
   * Readings: Background readings on the use of machine learning in epidemiologic research
