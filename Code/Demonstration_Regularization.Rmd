@@ -42,7 +42,7 @@ We are partitioning the data in a 70/30 split.
 ```{r data_prep}
 set.seed(100)
 
-chr<-read.csv("C:\\Users\\js5406\\OneDrive - cumc.columbia.edu\\EPIC Course\\chr.csv")
+chr<-read.csv("Data/chr.csv")
 
 #Strip off ID Variable
 chr<-chr[,2:68]
