@@ -1,0 +1,167 @@
+---
+title: "Demonstration of Caret for CaRT"
+author: "JAS"
+date: " "
+output:
+  html_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Classification and Regression Trees using Caret
+
+Yu et al utilized NHANES data from 1999-2004 to predict diabetes and pre-diabetes using Support Vector Machines. We will conduct a similar analysis using the caret package and classification trees. We will use data within the NHANES package in R. For this exercise, you will try to predict Diabetes using similar (although not all) variables. The available data is also slightly different, so you likely won't get the same answers.
+
+We will restrict the NHANES data to the list of 12 variables below, and partition the data into training and testing using a 70/30 split.
+
+"Age", "Gender", "Race1", "Education", "HHIncome", "Weight", "Height", "Pulse", "Diabetes", "BMI", "PhysActive", "Smoke100"
+
+We will build a pipeline to predict diabetes using a classification tree. We will optimize our  model using cross-validation to choose hyperparameters in the training data. We will calculate final accuracy in a test set.
+
+***
+
+
+```{r data_prep}
+library(tidyverse)
+library(NHANES)
+library(caret)
+library(pROC)
+library(e1071)
+library(rpart.plot)
+
+
+set.seed(100)
+#Tidyverse way
+#data = NHANES %>% select("Age", "Gender", "Race1", "Education", "HHIncome", "Weight", "Height", "Pulse", "Diabetes", "BMI", "PhysActive", "Smoke100")
+
+data ("NHANES")
+
+keep.var<-names(NHANES) %in% c("Age", "Gender", "Race1", "Education", "HHIncome", "Weight", "Height", "Pulse", "Diabetes", "BMI", "PhysActive", "Smoke100")
+NHANES.subset<-NHANES[keep.var]
+
+str(NHANES.subset)
+#Remove missings
+NHANES.subset<-na.omit(NHANES.subset)
+
+#Check balance of data ..... uh oh
+summary(NHANES.subset$Diabetes)
+
+
+#Partition data
+set.seed(100)
+training.indices.2<-NHANES.subset$Diabetes%>% createDataPartition(p=0.7, list=F)
+train.data.2<-NHANES.subset[training.indices.2, ]
+test.data.2<-NHANES.subset[-training.indices.2, ]
+
+#To use when evaluating
+train.noy<-train.data.2[,-10]
+test.noy<-test.data.2[,-10]
+```
+
+Classification Tree while accounting for imbalanced data
+
+```{r}
+
+tctrl <- trainControl(method = "cv", 
+                     number = 10, 
+                     verboseIter = FALSE,
+                     sampling = "down")
+
+cp = 10^seq(-3, -1, length = 100) 
+
+ model.tree<- train(Diabetes~.,
+        data = train.data.2,
+        method = "rpart",
+        trControl = tctrl,
+        tuneGrid = expand.grid(cp = cp)
+  )
+
+ ggplot(model.tree)
+ 
+model.tree$bestTune
+
+#Obtain variable importance metrics
+varImp(model.tree) 
+
+#Visualize the tree
+rpart.plot(model.tree$finalModel)
+
+#Estimate accuracy in the training data
+pred.nhanes<-predict(model.tree, train.noy)
+eval.results<-confusionMatrix(pred.nhanes, train.data.2$Diabetes, positive = "Yes")
+print(eval.results)
+
+
+#Estimate accuracy in the testing data
+pred_diab<-predict(model.tree, test.noy)
+pred_diab_prob<- predict(model.tree, test.noy, type = "prob")
+
+tree_results<-confusionMatrix(pred_diab, test.data.2$Diabetes, positive = "Yes")
+
+
+analysis <- roc(response=test.data.2$Diabetes, predictor=pred_diab_prob[,2])
+plot(1-analysis$specificities,analysis$sensitivities,type="l",
+ylab="Sensitiviy",xlab="1-Specificity",col="black",lwd=2,
+main = "ROC Curve for Diabetes Prediction")
+abline(a=0,b=1)
+```
+
+Don't account for imbalance in the data
+
+```{r}
+
+tctrl <- trainControl(method = "cv", 
+                     number = 10, 
+                     verboseIter = FALSE)
+
+cp = 10^seq(-3, -1, length = 100) 
+
+ model.tree<- train(Diabetes~.,
+        data = train.data.2,
+        method = "rpart",
+        trControl = tctrl,
+        tuneGrid = expand.grid(cp = cp)
+  )
+
+ ggplot(model.tree)
+ 
+model.tree$bestTune
+
+#Obtain variable importance metrics
+varImp(model.tree) 
+
+
+rpart.plot(model.tree$finalModel)
+
+pred.nhanes<-predict(model.tree, train.noy)
+
+eval.results<-confusionMatrix(pred.nhanes, train.data.2$Diabetes, positive = "Yes")
+print(eval.results)
+
+#Estimate accuracy in the testing data
+pred_diab<-predict(model.tree, test.noy)
+pred_diab_prob<- predict(model.tree, test.noy, type = "prob")
+
+tree_results<-confusionMatrix(pred_diab, test.data.2$Diabetes, positive = "Yes")
+tree_results
+
+analysis <- roc(response=test.data.2$Diabetes, predictor=pred_diab_prob[,2])
+plot(1-analysis$specificities,analysis$sensitivities,type="l",
+ylab="Sensitiviy",xlab="1-Specificity",col="black",lwd=2,
+main = "ROC Curve for Diabetes Prediction")
+abline(a=0,b=1)
+```
+
+### Using caret more broadly
+
+```{r}
+names(getModelInfo())
+
+modelLookup("rpart")
+modelLookup("rpart2")
+
+```
+

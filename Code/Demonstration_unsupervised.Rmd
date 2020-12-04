@@ -1,0 +1,131 @@
+---
+title: "Demonstration of Unsupervised Methods"
+author: "JAS"
+date: 
+output:
+  html_document: default
+  word_document: default
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Demonstration of Unsupervised Methods 
+
+We will be using the following dataset to demonstrate clustering methods. 
+
+* Simulated data that we will use to represent clinical phenotypic data on COPD extracted from an EHR system. 
+    + Data Citation: Ultsch, A.: Clustering with SOM: U*C, In Proc. Workshop on Self-Organizing Maps, Paris, France, (2005) , pp. 75-82
+    
+
+***
+
+### Load Packages Needed for Both Demonstrations
+Ensure that all packages are installed. Note that the package ggbiplot is a package used to visualize principal components analysis. I'm not demonstrating that today, but I wanted to show an example of going to someone's github to get a package. 
+
+```{r load_packages}
+
+#First need to load package devtools and Rtools if you want to load packages from github
+#library(devtools)
+#install_github("vqv/ggbiplot", force = TRUE)
+#library(ggbiplot)
+
+library(stats)
+library(factoextra)
+library(cluster)
+
+```
+
+
+***
+### Demonstration of Clustering Analysis
+In this demonstration, we will attempt to uncover phenotypic subtypes within clinical data of Chronic Obstructive Pulmonary Disease (COPD). COPD is defined as airflow limitation that is not fully reversible. This is a very broad definition, and it suspected that there are a number of distinct phenotypes within the broader term of COPD. Identifying these subtypes can allow researchers to conduct more targeted investigations of COPD, uncovering mechanisms and risk factors for the different subtypes. This demonstration is loosely based on the work performed by Cho et al. Respiratory Research 2010; 11:30. The data are not the same. Please note that for practical reasons, we are using a small dataset with only 3 variables and 212 patient records. But, this same procedure could be repeated with a larger number of variables and/or records.
+
+For this demonstration, the three variables in our dataset are:
+1. post-bronchodilator FEV1 percent predicted
+2. percent bronchodilator responsiveness
+3. airway wall thickness
+
+***
+
+### Step 1: Load data and prepare for analysis
+```{r dataprep}
+copd.data<-read.delim("C:/Users/js5406/OneDrive - cumc.columbia.edu/EPIC Course/Hepta.lrn", header=FALSE)
+
+copd.data<-copd.data[,2:4]
+
+var.names<-c("pb_FEV1_pctpred", "pct_br_resp", "awt")
+colnames(copd.data)<-var.names
+
+#Omitting all missing data, if any
+copd.data.nomiss<-na.omit(copd.data)
+
+#Check means and SDs to determine if scaling is necessary
+colMeans(copd.data.nomiss, na.rm=TRUE)
+apply(copd.data.nomiss, 2, sd, na.rm=TRUE)
+
+#Is scaling necessary?
+
+```
+
+
+### Step 2: Conduct a clustering analysis using k-means clustering
+
+We can use the kmeans function in order to identify clusters within the data, based on the three variables. Option nstart indicates the number of initial random configurations that are tried as the algorithm can be sensitive to the intial seeding of the means. So nstart of 25 translates to kmeans generating 25 initial configurations and then reporting the best one.
+
+```{r kmeans}
+set.seed(100)
+clusters<-kmeans(copd.data.nomiss, 5, nstart=25)
+str(clusters)
+
+#Number of observations per cluster
+clusters$size
+
+#Visualize clusters
+fviz_cluster(clusters, data=copd.data.nomiss)
+
+#Show the mean value of features within each cluster. Do they make substantive sense?
+clusters$centers
+
+#Conduct a gap_statistic analysis to determine optimal number of clusters
+set.seed(100)
+gap_stat<-clusGap(copd.data.nomiss, FUN=kmeans, nstart=25, K.max=9, B=50)
+print(gap_stat, method="firstmax")
+
+clusters.7<-kmeans(copd.data.nomiss, 7, nstart=25)
+str(clusters.7)
+
+clusters$centers
+fviz_cluster(clusters.7, data=copd.data.nomiss)
+
+```
+
+### Step 3: Conduct a hierarchical clustering analysis
+Note there are different methods you can use to create your dissimilarity matrix. We are using complete linkage in this demonstration, which tends to produce more compact clusters. 
+
+hclust is from the stats package. It performs agglomerative clustering.
+```{r hierarchical}
+# Create Dissimilarity matrix
+diss.matrix <- dist(copd.data.nomiss, method = "euclidean")
+
+# Hierarchical clustering using Complete Linkage
+clusters.h<- hclust(diss.matrix, method = "complete" )
+
+# Plot the obtained dendrogram
+plot(clusters.h, cex = 0.6, hang = -1)
+
+gap_stat <- clusGap(copd.data.nomiss, FUN = hcut, nstart = 25, K.max = 10, B = 50)
+fviz_gap_stat(gap_stat)
+
+#Use number of clusters from gap statistic to obtain cluster assignment for each observation
+clusters.h.7<-cutree(clusters.h, k=7)
+table(clusters.h.7)
+
+
+```
+
+
