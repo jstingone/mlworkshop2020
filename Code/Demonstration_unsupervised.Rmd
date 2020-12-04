@@ -54,7 +54,7 @@ For this demonstration, the three variables in our dataset are:
 
 ### Step 1: Load data and prepare for analysis
 ```{r dataprep}
-copd.data<-read.delim("C:/Users/js5406/OneDrive - cumc.columbia.edu/EPIC Course/Hepta.lrn", header=FALSE)
+copd.data<-read.delim("Data/Hepta.lrn", header=FALSE)
 
 copd.data<-copd.data[,2:4]
 
